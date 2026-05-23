@@ -88,48 +88,84 @@ impl Float for f64 {
     }
 }
 
+
+#[derive(Copy, Clone)]
+struct Complex<T: Float> { re: T, im: T }
+
+impl<T: Float> Add for Complex<T> {
+    type Output = Self;
+
+    #[inline(always)]
+    fn add(self, rhs: Self) -> Self {
+        Complex { re: self.re + rhs.re, im: self.im + rhs.im }
+    }
+}
+
+impl<T: Float> Mul for Complex<T> {
+    type Output = Self;
+
+    #[inline(always)]
+    fn mul(self, rhs: Self) -> Self {
+        Complex {
+            re: self.re * rhs.re - self.im * rhs.im,
+            im: self.re * rhs.im + self.im * rhs.re,
+        }
+    }
+}
+
+impl<T: Float> Complex<T> {
+    #[inline(always)]
+    fn sq(self) -> Self {
+        Complex {
+            re: self.re * self.re - self.im * self.im,
+            im: T::TWO * self.re * self.im,
+        }
+    }
+
+    #[inline(always)]
+    fn modulus_sq(self) -> T {
+        self.re * self.re + self.im * self.im
+    }
+
+    #[inline(always)]
+    fn zero() -> Self {
+        Complex { re: T::ZERO, im: T::ZERO }
+    }
+}
+
 struct EscapedPoint<T: Float> {
-    re: T,
-    im: T,
+    z: Complex<T>,
     iters: u32,
 }
 
 impl<T: Float> EscapedPoint<T> {
-    fn magnitude_squared(&self) -> T {
-        self.re * self.re + self.im * self.im
+    fn magnitude_squared(self) -> T {
+        self.z.modulus_sq()
     }
 
-    fn new(re: T, im: T, iters: u32) -> Self {
-        EscapedPoint { re, im, iters }
+    fn new(z: Complex<T>, iters: u32) -> Self {
+        EscapedPoint { z, iters }
     }
 }
 
 #[inline(always)]
-fn escape<T: Float>(cx: T, cy: T, max_iter: u32) -> EscapedPoint<T> {
-    let mut zx = T::ZERO;
-    let mut zy = T::ZERO;
+fn escape<T: Float>(c: Complex<T>, max_iter: u32) -> EscapedPoint<T> {
+    let mut z = Complex::zero();
     let mut iter = 0u32;
 
     while iter < max_iter {
-        let zx2 = zx * zx;
-        let zy2 = zy * zy;
-        if zx2 + zy2 > T::FOUR {
-            break;
-        }
-        zy = T::TWO * zx * zy + cy;
-        zx = zx2 - zy2 + cx;
+        if z.modulus_sq() > T::FOUR { break; }
+        z = z.sq() + c;
         iter += 1;
     }
-    EscapedPoint::new(zx, zy, iter)
+    EscapedPoint::new(z, iter)
 }
 
 #[inline(always)]
 fn smooth<T: Float>(e: EscapedPoint<T>, max_iter: u32) -> T {
-    if e.iters >= max_iter {
-        return T::ZERO;
-    }
+    if e.iters >= max_iter { return T::ZERO; }
 
-    let log_zn = T::HALF * e.magnitude_squared().approximate_ln();
+    let log_zn = T::HALF * e.z.modulus_sq().approximate_ln();
     let nu = (log_zn / T::LN_2).approximate_ln() / T::LN_2;
     let mu = T::from_u32(e.iters) + T::ONE - nu;
     if mu > T::ZERO { mu } else { T::ZERO }
@@ -175,10 +211,9 @@ mod kernels {
                 let mut sx = 0u32;
                 while sx < samples {
                     let ox = (T::from_u32(sx) + T::HALF) * inv_n - T::HALF;
-                    let cx = base_x + ox * px_w;
-                    let cy = base_y + oy * px_h;
+                    let c = Complex { re: base_x + ox * px_w, im: base_y + oy * px_h };
                     // Two phases: escape-iterate, then smooth the raw result.
-                    let e = escape::<T>(cx, cy, max_iter);
+                    let e = escape::<T>(c, max_iter);
                     acc = acc + smooth::<T>(e, max_iter);
                     sx += 1;
                 }
