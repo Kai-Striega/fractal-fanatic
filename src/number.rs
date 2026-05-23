@@ -86,8 +86,8 @@ impl Float for f64 {
 
 #[derive(Copy, Clone)]
 pub struct Complex<T: Float> {
-    pub(crate) re: T,
-    pub(crate) im: T,
+    pub re: T,
+    pub im: T,
 }
 
 impl<T: Float> Add for Complex<T> {
@@ -116,7 +116,7 @@ impl<T: Float> Mul for Complex<T> {
 
 impl<T: Float> Complex<T> {
     #[inline(always)]
-    pub(crate) fn sq(self) -> Self {
+    pub fn sq(self) -> Self {
         Complex {
             re: self.re * self.re - self.im * self.im,
             im: T::TWO * self.re * self.im,
@@ -124,12 +124,12 @@ impl<T: Float> Complex<T> {
     }
 
     #[inline(always)]
-    pub(crate) fn modulus_sq(self) -> T {
+    pub fn modulus_sq(self) -> T {
         self.re * self.re + self.im * self.im
     }
 
     #[inline(always)]
-    pub(crate) fn zero() -> Self {
+    pub fn zero() -> Self {
         Complex {
             re: T::ZERO,
             im: T::ZERO,

@@ -1,25 +1,17 @@
 use crate::number::{Complex, EscapedPoint, Float};
 
-pub trait Fractal<T: Float>: Copy {
-    fn step(self, z: Complex<T>, c: Complex<T>) -> Complex<T>;
-    fn setup(self, pixel: Complex<T>) -> (Complex<T>, Complex<T>);
-    fn iterate_until_escape(self, pixel: Complex<T>, max_iter: u32) -> EscapedPoint<T>;
+pub struct Seed<T: Float> {
+    pub z: Complex<T>,
+    pub c: Complex<T>,
 }
 
-#[derive(Copy, Clone)]
-pub struct Mandlebrot;
+pub trait Fractal<T: Float>: Copy {
+    fn step(self, z: Complex<T>, c: Complex<T>) -> Complex<T>;
+    fn setup(self, pixel: Complex<T>) -> Seed<T>;
 
-impl<T: Float> Fractal<T> for Mandlebrot {
-    fn step(self, z: Complex<T>, c: Complex<T>) -> Complex<T> {
-        z.sq() + c
-    }
-
-    fn setup(self, pixel: Complex<T>) -> (Complex<T>, Complex<T>) {
-        (Complex::zero(), pixel)
-    }
-
+    #[inline(always)]
     fn iterate_until_escape(self, pixel: Complex<T>, max_iter: u32) -> EscapedPoint<T> {
-        let (mut z, c) = self.setup(pixel);
+        let Seed { mut z, c } = self.setup(pixel);
         let mut iter = 0u32;
         while iter < max_iter {
             if z.modulus_sq() > T::FOUR {
@@ -30,6 +22,24 @@ impl<T: Float> Fractal<T> for Mandlebrot {
         }
 
         EscapedPoint { z, iter }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct Mandlebrot;
+
+impl<T: Float> Fractal<T> for Mandlebrot {
+    #[inline(always)]
+    fn step(self, z: Complex<T>, c: Complex<T>) -> Complex<T> {
+        z.sq() + c
+    }
+
+    #[inline(always)]
+    fn setup(self, pixel: Complex<T>) -> Seed<T> {
+        Seed {
+            z: Complex::zero(),
+            c: pixel,
+        }
     }
 }
 
@@ -39,25 +49,16 @@ pub struct Julia<F: Float> {
 }
 
 impl<T: Float> Fractal<T> for Julia<T> {
+    #[inline(always)]
     fn step(self, z: Complex<T>, c: Complex<T>) -> Complex<T> {
         z.sq() + c
     }
 
-    fn setup(self, pixel: Complex<T>) -> (Complex<T>, Complex<T>) {
-        (pixel, self.c)
-    }
-
-    fn iterate_until_escape(self, pixel: Complex<T>, max_iter: u32) -> EscapedPoint<T> {
-        let (mut z, c) = self.setup(pixel);
-        let mut iter = 0u32;
-        while iter < max_iter {
-            if z.modulus_sq() > T::FOUR {
-                break;
-            }
-            z = self.step(z, c);
-            iter += 1;
+    #[inline(always)]
+    fn setup(self, pixel: Complex<T>) -> Seed<T> {
+        Seed {
+            z: pixel,
+            c: self.c,
         }
-
-        EscapedPoint { z, iter }
     }
 }
