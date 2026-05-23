@@ -120,6 +120,7 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
+    let output = args.output;
     let width = args.width;
     let height = args.height;
     let center_x = args.center_x;
@@ -169,9 +170,9 @@ fn main() {
         .to_host_vec(&stream)
         .expect("Failed to copy back to host");
 
-    write_ppm("mandelbrot.ppm", width, height, &c_host, max_iter).expect("Failed to write ppm");
+    write_ppm(&output, width, height, &c_host, max_iter).expect("Failed to write ppm");
 
-    println!("Wrote mandelbrot.ppm ({}x{})", width, height);
+    println!("Wrote {} ({}x{})", &output, width, height);
 }
 
 fn write_ppm(
