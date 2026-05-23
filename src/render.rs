@@ -1,5 +1,6 @@
 use crate::fractal::Fractal;
 use crate::number::{Complex, EscapedPoint, Float};
+use crate::view::Bounds;
 
 #[inline(always)]
 pub fn smooth<T: Float>(e: EscapedPoint<T>, max_iter: u32) -> T {
@@ -19,10 +20,7 @@ pub fn render_pixel<T: Float, F: Fractal<T>>(
     i: u32,
     width: u32,
     height: u32,
-    min_x: T,
-    max_x: T,
-    min_y: T,
-    max_y: T,
+    bounds: Bounds<T>,
     max_iter: u32,
     samples: u32,
 ) -> f32 {
@@ -31,13 +29,11 @@ pub fn render_pixel<T: Float, F: Fractal<T>>(
     let px = i % width;
     let py = i / width;
 
-    let span_x = max_x - min_x;
-    let span_y = max_y - min_y;
-    let px_w = span_x / T::from_u32(width - 1);
-    let px_h = span_y / T::from_u32(height - 1);
+    let px_w = bounds.span_x() / T::from_u32(width - 1);
+    let px_h = bounds.span_y() / T::from_u32(height - 1);
 
-    let base_x = min_x + T::from_u32(px) * px_w;
-    let base_y = min_y + T::from_u32(py) * px_h;
+    let base_x = bounds.min_x + T::from_u32(px) * px_w;
+    let base_y = bounds.min_y + T::from_u32(py) * px_h;
 
     let mut acc = T::ZERO;
     let mut sy = 0u32;

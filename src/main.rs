@@ -2,7 +2,7 @@ use clap::Parser;
 use cuda_core::{CudaContext, DeviceBuffer, LaunchConfig};
 use cuda_device::{DisjointSlice, kernel};
 use cuda_host::cuda_module;
-use fractal_fanatic::{Complex, Float, Fractal, Julia, View, render_pixel, write_ppm};
+use fractal_fanatic::{Bounds, Complex, Float, Fractal, Julia, View, render_pixel, write_ppm};
 
 #[cuda_module]
 mod kernels {
@@ -13,10 +13,7 @@ mod kernels {
         fractal: F,
         width: u32,
         height: u32,
-        min_x: T,
-        max_x: T,
-        min_y: T,
-        max_y: T,
+        bounds: Bounds<T>,
         max_iter: u32,
         samples: u32,
         mut out: DisjointSlice<f32>,
@@ -27,10 +24,7 @@ mod kernels {
                 idx.get() as u32,
                 width,
                 height,
-                min_x,
-                max_x,
-                min_y,
-                max_y,
+                bounds,
                 max_iter,
                 samples,
             );
@@ -90,7 +84,7 @@ fn main() {
         center_y: args.center_y,
         half_x: args.half_x,
     };
-    let bounds = view.bounds(width, height);
+    let bounds = view.get_bounds(width, height);
 
     let n: usize = (width as usize) * (height as usize);
 
@@ -111,10 +105,7 @@ fn main() {
             },
             width,
             height,
-            bounds.min_x,
-            bounds.max_x,
-            bounds.min_y,
-            bounds.max_y,
+            bounds,
             max_iter,
             samples,
             &mut c_device,
