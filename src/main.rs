@@ -84,7 +84,7 @@ mod kernels {
 #[command(version, about, long_about = None)]
 struct Args {
     /// Output image path (binary PPM, P6).
-    #[arg(short, long, default_value = "mandelbrot.ppm")]
+    #[arg(short, long, default_value = "julia.ppm")]
     output: String,
 
     /// Image width in pixels.
