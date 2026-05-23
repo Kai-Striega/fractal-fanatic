@@ -87,6 +87,53 @@ impl Float for f64 {
     }
 }
 
+struct EscapedPoint<T: Float> {
+    re: T,
+    im: T,
+    iters: u32,
+}
+
+impl<T: Float> EscapedPoint<T> {
+    fn magnitude_squared(&self) -> T {
+        self.re * self.re + self.im * self.im
+    }
+
+    fn new(re: T, im: T, iters: u32) -> Self {
+        EscapedPoint { re, im, iters }
+    }
+}
+
+#[inline(always)]
+fn escape<T: Float>(cx: T, cy: T, max_iter: u32) -> EscapedPoint<T> {
+    let mut zx = T::ZERO;
+    let mut zy = T::ZERO;
+    let mut iter = 0u32;
+
+    while iter < max_iter {
+        let zx2 = zx * zx;
+        let zy2 = zy * zy;
+        if zx2 + zy2 > T::FOUR {
+            break;
+        }
+        zy = T::TWO * zx * zy + cy;
+        zx = zx2 - zy2 + cx;
+        iter += 1;
+    }
+    EscapedPoint::new(zx, zy, iter)
+}
+
+#[inline(always)]
+fn smooth<T: Float>(e: EscapedPoint<T>, max_iter: u32) -> T {
+    if e.iters >= max_iter {
+        return T::ZERO;
+    }
+
+    let log_zn = T::HALF * e.magnitude_squared().approximate_ln();
+    let nu = (log_zn / T::LN_2).approximate_ln() / T::LN_2;
+    let mu = T::from_u32(e.iters) + T::ONE - nu;
+    if mu > T::ZERO { mu } else { T::ZERO }
+}
+
 #[cuda_module]
 mod kernels {
     use super::*;
@@ -100,48 +147,44 @@ mod kernels {
         min_y: T,
         max_y: T,
         max_iter: u32,
+        samples: u32,
         mut out: DisjointSlice<f32>,
     ) {
         if let Some((pixel, idx)) = out.get_mut_indexed() {
             let i = idx.get();
+            let total = T::from_u32(samples * samples);
 
             let px = (i as u32) % width;
             let py = (i as u32) / height;
 
-            // Map pixel -> complex plane, all in precision T.
-            let fx = T::from_u32(px) / T::from_u32(width - 1);
-            let fy = T::from_u32(py) / T::from_u32(height - 1);
-            let cx = min_x + fx * (max_x - min_x);
-            let cy = min_y + fy * (max_y - min_y);
+            let span_x = max_x - min_x;
+            let span_y = max_y - min_y;
+            let px_w = span_x / T::from_u32(width - 1);
+            let px_h = span_y / T::from_u32(height - 1);
 
-            // z_{n+1} = z_n^2 + c, z_0 = 0.
-            let mut zx = T::ZERO;
-            let mut zy = T::ZERO;
-            let mut iter = 0u32;
+            let base_x = min_x + T::from_u32(px) * px_w;
+            let base_y = min_y + T::from_u32(py) * px_h;
 
-            while iter < max_iter {
-                let zx2 = zx * zx;
-                let zy2 = zy * zy;
-                if zx2 * zy2 > T::FOUR {
-                    break;
+            let mut acc = T::ZERO;
+            let mut sy = 0u32;
+            let inv_n = T::ONE / T::from_u32(samples);
+
+            while sy < samples {
+                let oy = (T::from_u32(sy) + T::HALF) * inv_n - T::HALF;
+                let mut sx = 0u32;
+                while sx < samples {
+                    let ox = (T::from_u32(sx) + T::HALF) * inv_n - T::HALF;
+                    let cx = base_x + ox * px_w;
+                    let cy = base_y + oy * px_h;
+                    // Two phases: escape-iterate, then smooth the raw result.
+                    let e = escape::<T>(cx, cy, max_iter);
+                    acc = acc + smooth::<T>(e, max_iter);
+                    sx += 1;
                 }
-
-                // (zx + i*zy)^2 = (zx^2 - zy^2) + i*(2*zx*zy)
-                zy = T::TWO * zx * zy + cy;
-                zx = zx2 - zy2 + cx;
-                iter += 1;
+                sy += 1;
             }
 
-            if iter >= max_iter {
-                *pixel = 0.0;
-            } else {
-                let mag2 = zx * zx + zy * zy;
-                let log_zn = T::HALF * mag2.approximate_ln();
-                let nu = (log_zn / T::LN_2).approximate_ln() / T::LN_2;
-                let smooth = T::from_u32(iter) + T::ONE - nu;
-                let s = if smooth > T::ZERO { smooth } else { T::ZERO };
-                *pixel = s.to_f32();
-            }
+            *pixel = (acc / total).to_f32();
         }
     }
 }
@@ -149,6 +192,7 @@ fn main() {
     let width: u32 = 7680;
     let height: u32 = 4320;
     let max_iter: u32 = 8192;
+    let samples: u32 = 4;
 
     let center_x = -0.5f64;
     let center_y = -0.5f64;
@@ -180,6 +224,7 @@ fn main() {
             min_y,
             max_y,
             max_iter,
+            samples,
             &mut c_device,
         )
         .expect("Kernel launch failed");
