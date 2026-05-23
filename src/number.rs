@@ -85,14 +85,20 @@ impl Float for f64 {
 }
 
 #[derive(Copy, Clone)]
-pub struct Complex<T: Float> { pub(crate) re: T, pub(crate) im: T }
+pub struct Complex<T: Float> {
+    pub(crate) re: T,
+    pub(crate) im: T,
+}
 
 impl<T: Float> Add for Complex<T> {
     type Output = Self;
 
     #[inline(always)]
     fn add(self, rhs: Self) -> Self {
-        Complex { re: self.re + rhs.re, im: self.im + rhs.im }
+        Complex {
+            re: self.re + rhs.re,
+            im: self.im + rhs.im,
+        }
     }
 }
 
@@ -124,6 +130,14 @@ impl<T: Float> Complex<T> {
 
     #[inline(always)]
     pub(crate) fn zero() -> Self {
-        Complex { re: T::ZERO, im: T::ZERO }
+        Complex {
+            re: T::ZERO,
+            im: T::ZERO,
+        }
     }
+}
+
+pub struct EscapedPoint<T: Float> {
+    pub z: Complex<T>,
+    pub iter: u32,
 }

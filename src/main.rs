@@ -1,46 +1,22 @@
+mod fractal;
 mod number;
 
+use crate::fractal::{Fractal, Julia, Mandlebrot};
+use crate::number::{Complex, EscapedPoint, Float};
 use clap::Parser;
 use cuda_core::{CudaContext, DeviceBuffer, LaunchConfig};
 use cuda_device::{DisjointSlice, kernel};
 use cuda_host::cuda_module;
-use number::{Complex, Float};
-
-struct EscapedPoint<T: Float> {
-    z: Complex<T>,
-    iters: u32,
-}
-
-impl<T: Float> EscapedPoint<T> {
-    fn new(z: Complex<T>, iters: u32) -> Self {
-        EscapedPoint { z, iters }
-    }
-}
-
-#[inline(always)]
-fn escape<T: Float>(c: Complex<T>, max_iter: u32) -> EscapedPoint<T> {
-    let mut z = Complex::zero();
-    let mut iter = 0u32;
-
-    while iter < max_iter {
-        if z.modulus_sq() > T::FOUR {
-            break;
-        }
-        z = z.sq() + c;
-        iter += 1;
-    }
-    EscapedPoint::new(z, iter)
-}
 
 #[inline(always)]
 fn smooth<T: Float>(e: EscapedPoint<T>, max_iter: u32) -> T {
-    if e.iters >= max_iter {
+    if e.iter >= max_iter {
         return T::ZERO;
     }
 
     let log_zn = T::HALF * e.z.modulus_sq().approximate_ln();
     let nu = (log_zn / T::LN_2).approximate_ln() / T::LN_2;
-    let mu = T::from_u32(e.iters) + T::ONE - nu;
+    let mu = T::from_u32(e.iter) + T::ONE - nu;
     if mu > T::ZERO { mu } else { T::ZERO }
 }
 
@@ -50,7 +26,8 @@ mod kernels {
     use number::Float;
 
     #[kernel]
-    pub fn mandelbrot<T: Float>(
+    pub fn compute<T: Float, F: Fractal<T>>(
+        fractal: F,
         width: u32,
         height: u32,
         min_x: T,
@@ -90,7 +67,7 @@ mod kernels {
                         im: base_y + oy * px_h,
                     };
                     // Two phases: escape-iterate, then smooth the raw result.
-                    let e = escape::<T>(c, max_iter);
+                    let e = fractal.iterate_until_escape(c, max_iter);
                     acc = acc + smooth::<T>(e, max_iter);
                     sx += 1;
                 }
@@ -167,9 +144,15 @@ fn main() {
 
     let module = kernels::load(&ctx).expect("Failed to load embedded CUDA module");
     module
-        .mandelbrot(
+        .compute(
             &stream,
             LaunchConfig::for_num_elems(n as u32),
+            Julia {
+                c: Complex {
+                    re: -0.7,
+                    im: 0.27015,
+                },
+            },
             width,
             height,
             min_x,
