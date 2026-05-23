@@ -2,6 +2,7 @@ use core::ops::{Add, Div, Mul, Sub};
 use cuda_core::{CudaContext, DeviceBuffer, LaunchConfig};
 use cuda_device::{DisjointSlice, kernel};
 use cuda_host::cuda_module;
+use clap::Parser;
 
 /// Minimal floating point abstraction for device code
 pub trait Float:
@@ -188,18 +189,60 @@ mod kernels {
         }
     }
 }
+
+
+/// GPU Mandelbrot renderer (cuda-oxide).
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Output image path (binary PPM, P6).
+    #[arg(short, long, default_value = "mandelbrot.ppm")]
+    output: String,
+
+    /// Image width in pixels.
+    #[arg(long, default_value_t = 1920)]
+    width: u32,
+
+    /// Image height in pixels.
+    #[arg(long, default_value_t = 1080)]
+    height: u32,
+
+    /// View center, real axis.
+    #[arg(long, default_value_t = -0.5, allow_negative_numbers = true)]
+    center_x: f64,
+
+    /// View center, imaginary axis.
+    #[arg(long, default_value_t = -0.5, allow_negative_numbers = true)]
+    center_y: f64,
+
+    /// Half-width of the view in complex-plane units. Smaller = deeper zoom.
+    /// (1.35 frames the whole set.)
+    #[arg(long, default_value_t = 1.35)]
+    half_x: f64,
+
+    /// Supersampling factor per axis (1 = off, 2 = 4x, 3 = 9x).
+    #[arg(short, long, default_value_t = 1)]
+    samples: u32,
+
+    /// Override the auto-scaled iteration count. If unset, scales with zoom.
+    #[arg(long)]
+    max_iter: Option<u32>,
+}
+
+
 fn main() {
-    let width: u32 = 7680;
-    let height: u32 = 4320;
-    let max_iter: u32 = 8192;
-    let samples: u32 = 4;
+    let args = Args::parse();
 
-    let center_x = -0.5f64;
-    let center_y = -0.5f64;
+    let width = args.width;
+    let height = args.height;
+    let center_x = args.center_x;
+    let center_y = args.center_y;
+    let half_x = args.half_x;
+    let samples = args.samples;
+    let max_iter = args.max_iter.unwrap_or(1024);
 
-    let half_y = 1.25f64;
     let aspect = width as f64 / height as f64;
-    let half_x = half_y * aspect;
+    let half_y = half_x / aspect;
 
     let min_x = center_x - half_x;
     let max_x = center_x + half_x;
