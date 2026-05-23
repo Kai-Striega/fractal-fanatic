@@ -1,8 +1,8 @@
+use clap::Parser;
 use core::ops::{Add, Div, Mul, Sub};
 use cuda_core::{CudaContext, DeviceBuffer, LaunchConfig};
 use cuda_device::{DisjointSlice, kernel};
 use cuda_host::cuda_module;
-use clap::Parser;
 
 /// Minimal floating point abstraction for device code
 pub trait Float:
@@ -190,7 +190,6 @@ mod kernels {
     }
 }
 
-
 /// GPU Mandelbrot renderer (cuda-oxide).
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -222,13 +221,12 @@ struct Args {
 
     /// Supersampling factor per axis (1 = off, 2 = 4x, 3 = 9x).
     #[arg(short, long, default_value_t = 1)]
-    samples: u32,
+    ssaa_factor: u32,
 
-    /// Override the auto-scaled iteration count. If unset, scales with zoom.
-    #[arg(long)]
-    max_iter: Option<u32>,
+    /// Max number of iterations before a point is deemed to have not escaped.
+    #[arg(long, default_value_t = 1024)]
+    max_iter: u32,
 }
-
 
 fn main() {
     let args = Args::parse();
@@ -238,8 +236,8 @@ fn main() {
     let center_x = args.center_x;
     let center_y = args.center_y;
     let half_x = args.half_x;
-    let samples = args.samples;
-    let max_iter = args.max_iter.unwrap_or(1024);
+    let samples = args.ssaa_factor;
+    let max_iter = args.max_iter;
 
     let aspect = width as f64 / height as f64;
     let half_y = half_x / aspect;
