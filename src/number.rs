@@ -136,8 +136,3 @@ impl<T: Float> Complex<T> {
         }
     }
 }
-
-pub struct EscapedPoint<T: Float> {
-    pub z: Complex<T>,
-    pub iter: u32,
-}

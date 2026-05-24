@@ -1,9 +1,9 @@
-use crate::fractal::Fractal;
-use crate::number::{Complex, EscapedPoint, Float};
+use crate::fractal::{Escapee, Fractal};
+use crate::number::{Complex, Float};
 use crate::view::Bounds;
 
 #[inline(always)]
-pub fn smooth<T: Float>(e: EscapedPoint<T>, max_iter: u32) -> T {
+pub fn smooth<T: Float>(e: Escapee<T>, max_iter: u32) -> T {
     if e.iter >= max_iter {
         return T::ZERO;
     }

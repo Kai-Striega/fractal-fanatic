@@ -6,8 +6,8 @@ pub mod render;
 pub mod view;
 
 pub use color::viridis;
-pub use fractal::{Fractal, Julia, Mandelbrot, Seed};
+pub use fractal::{Escapee, Fractal, Julia, Mandelbrot, Seed};
 pub use image::write_ppm;
-pub use number::{Complex, EscapedPoint, Float};
+pub use number::{Complex, Float};
 pub use render::{render_pixel, smooth};
 pub use view::{Bounds, View};

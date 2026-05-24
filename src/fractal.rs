@@ -1,8 +1,13 @@
-use crate::number::{Complex, EscapedPoint, Float};
+use crate::number::{Complex, Float};
 
 pub struct Seed<T: Float> {
     pub z: Complex<T>,
     pub c: Complex<T>,
+}
+
+pub struct Escapee<T: Float> {
+    pub z: Complex<T>,
+    pub iter: u32,
 }
 
 pub trait Fractal<T: Float>: Copy {
@@ -10,7 +15,7 @@ pub trait Fractal<T: Float>: Copy {
     fn setup(self, pixel: Complex<T>) -> Seed<T>;
 
     #[inline(always)]
-    fn iterate_until_escape(self, pixel: Complex<T>, max_iter: u32) -> EscapedPoint<T> {
+    fn iterate_until_escape(self, pixel: Complex<T>, max_iter: u32) -> Escapee<T> {
         let Seed { mut z, c } = self.setup(pixel);
         let mut iter = 0u32;
         while iter < max_iter {
@@ -21,7 +26,7 @@ pub trait Fractal<T: Float>: Copy {
             iter += 1;
         }
 
-        EscapedPoint { z, iter }
+        Escapee { z, iter }
     }
 }
 
