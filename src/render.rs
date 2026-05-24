@@ -1,18 +1,6 @@
-use crate::fractal::{Escapee, Fractal};
+use crate::fractal::Fractal;
 use crate::number::{Complex, Float};
 use crate::view::Bounds;
-
-#[inline(always)]
-pub fn smooth<T: Float>(e: Escapee<T>, max_iter: u32) -> T {
-    if e.iter >= max_iter {
-        return T::ZERO;
-    }
-
-    let log_zn = T::HALF * e.z.modulus_sq().approximate_ln();
-    let nu = (log_zn / T::LN_2).approximate_ln() / T::LN_2;
-    let mu = T::from_u32(e.iter) + T::ONE - nu;
-    if mu > T::ZERO { mu } else { T::ZERO }
-}
 
 #[inline(always)]
 pub fn render_pixel<T: Float, F: Fractal<T>>(
@@ -48,9 +36,8 @@ pub fn render_pixel<T: Float, F: Fractal<T>>(
                 re: base_x + ox * px_w,
                 im: base_y + oy * px_h,
             };
-            // Two phases: escape-iterate, then smooth the raw result.
-            let e = fractal.iterate_until_escape(c, max_iter);
-            acc = acc + smooth::<T>(e, max_iter);
+            let outcome = fractal.run(c, max_iter);
+            acc = acc + fractal.measure(outcome);
             sx += 1;
         }
         sy += 1;

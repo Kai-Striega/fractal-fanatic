@@ -102,24 +102,39 @@ impl<T: Float> Add for Complex<T> {
     }
 }
 
-impl<T: Float> Mul for Complex<T> {
-    type Output = Self;
-
-    #[inline(always)]
-    fn mul(self, rhs: Self) -> Self {
-        Complex {
-            re: self.re * rhs.re - self.im * rhs.im,
-            im: self.re * rhs.im + self.im * rhs.re,
-        }
-    }
-}
-
 impl<T: Float> Complex<T> {
     #[inline(always)]
     pub fn sq(self) -> Self {
         Complex {
             re: self.re * self.re - self.im * self.im,
             im: T::TWO * self.re * self.im,
+        }
+    }
+
+    // Inherent arithmetic: the CUDA backend can't lower the operator traits'
+    // `Output` associated type for Complex, so these return a concrete Self.
+    #[inline(always)]
+    pub fn mul(self, rhs: Self) -> Self {
+        Complex {
+            re: self.re * rhs.re - self.im * rhs.im,
+            im: self.re * rhs.im + self.im * rhs.re,
+        }
+    }
+
+    #[inline(always)]
+    pub fn sub(self, rhs: Self) -> Self {
+        Complex {
+            re: self.re - rhs.re,
+            im: self.im - rhs.im,
+        }
+    }
+
+    #[inline(always)]
+    pub fn div(self, rhs: Self) -> Self {
+        let d = rhs.modulus_sq();
+        Complex {
+            re: (self.re * rhs.re + self.im * rhs.im) / d,
+            im: (self.im * rhs.re - self.re * rhs.im) / d,
         }
     }
 
@@ -132,6 +147,22 @@ impl<T: Float> Complex<T> {
     pub fn zero() -> Self {
         Complex {
             re: T::ZERO,
+            im: T::ZERO,
+        }
+    }
+
+    #[inline(always)]
+    pub fn one() -> Self {
+        Complex {
+            re: T::ONE,
+            im: T::ZERO,
+        }
+    }
+
+    #[inline(always)]
+    pub fn from_u32(v: u32) -> Self {
+        Complex {
+            re: T::from_u32(v),
             im: T::ZERO,
         }
     }

@@ -73,6 +73,7 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
+    let fractal = Julia { c: Complex { re: -0.7, im: 0.27015 } };
     let output = args.output;
     let width = args.width;
     let height = args.height;
@@ -90,19 +91,14 @@ fn main() {
 
     let ctx = CudaContext::new(0).expect("Failed to create CUDA context");
     let stream = ctx.default_stream();
-    let mut c_device = DeviceBuffer::<f32>::zeroed(&stream, n).unwrap();
+    let mut c_device = DeviceBuffer::<f32>::zeroed(&stream, n).expect("Failed to create CUDA device buffer");
 
     let module = kernels::load(&ctx).expect("Failed to load embedded CUDA module");
     module
         .compute(
             &stream,
             LaunchConfig::for_num_elems(n as u32),
-            Julia {
-                c: Complex {
-                    re: -0.7,
-                    im: 0.27015,
-                },
-            },
+            fractal,
             width,
             height,
             bounds,
