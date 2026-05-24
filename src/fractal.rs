@@ -26,9 +26,9 @@ pub trait Fractal<T: Float>: Copy {
 }
 
 #[derive(Copy, Clone)]
-pub struct Mandlebrot;
+pub struct Mandelbrot;
 
-impl<T: Float> Fractal<T> for Mandlebrot {
+impl<T: Float> Fractal<T> for Mandelbrot {
     #[inline(always)]
     fn step(self, z: Complex<T>, c: Complex<T>) -> Complex<T> {
         z.sq() + c
